@@ -4,35 +4,40 @@ library(psrcctpp)
 library(leaflet)
 library(odbc)
 library(DBI)
+library(glue)
 
 server <- function(input, output, session){
   
-  
-  workers_per_tract <- eventReactive(input$go, {
+  summary_per_rgc <- eventReactive(input$go, {
     ctpp_df<-get_psrc_ctpp(dyear=2016, data_table = input$tbl_name, scale = 'tract')
+    centers_tracts <- rgc_tracts(2010)
     ctpp_df<-transform_geoid(ctpp_df)
     ctpp_df$estimate<- as.numeric(gsub(",", "", ctpp_df$estimate))
-    ctpp_sov<- ctpp_df %>%
-      filter(category=='Car, truck, or van -- Drove alone' )
-    ctpp_total<-ctpp_df %>%
-      filter(category=='Total')
-    workers_mode_sov_share<-merge(ctpp_sov, ctpp_total,by= 'GEOID', suffixes=c('_sov','_total')) %>%
-      mutate(estimate = estimate_sov/estimate_total)
+    
+    ctpp_df <- ctpp_df %>%
+      inner_join(centers_tracts, by=c('GEOID' = 'geoid')) %>%
+      filter(category %in% c('Total', 'Car, truck, or van -- Drove alone')) %>%
+      mutate(short.category = ifelse(category %in% c('Car, truck, or van -- Drove alone'), 'sov', category)) %>%
+      rename(rgc=name) %>%
+      group_by(short.category, rgc) %>%
+      summarize(tot_estimate=sum(estimate)) %>%
+      pivot_wider(names_from=short.category, values_from=tot_estimate) %>%
+      #rename(sov = Car, truck, or van -- Drove alone) %>%
+      mutate(sov_share = sov / Total)
+    
     
     centers_tracts <- rgc_tracts(2010)
-    tract.url <- "https://services6.arcgis.com/GWxg6t7KXELn1thE/arcgis/rest/services/tract2010_nowater/FeatureServer/0/query?where=0=0&outFields=*&f=pgeojson"
-    tract.lyr <- st_read(tract.url)
-    tract.lyr <- tract.lyr %>%
-      inner_join(centers_tracts, by=c('GEOID10' = 'geoid'))
+    rgc.url <- "https://services6.arcgis.com/GWxg6t7KXELn1thE/arcgis/rest/services/Regional_Growth_Centers/FeatureServer/0/query?where=0=0&outFields=*&f=pgeojson"
+    rgc.lyr <- st_read(rgc.url)
     
-    
-    create_tract_map_ctpp(tract.tbl=workers_mode_sov_share, 
-                          tract.lyr=tract.lyr, 
+    create_rgc_map_ctpp(rgc.tbl=ctpp_df, 
+                          rgc.lyr=rgc.lyr, 
                           map.title='Drive Alone Share by Work Location', 
                           legend.title='Percent of Workers', 
-                          legend.subtitle='by Work Tract')
+                          legend.subtitle='by Tract')
       
   })
+  
   
   transform_geoid <- function(df){
     #rename work_geoid or res_geoid to just "GEOID"
@@ -57,44 +62,35 @@ server <- function(input, output, session){
                                   database = "ElmerGeo",
                                   trusted_connection = "yes"
     ) 
-    tracts_df <-  dbReadTable(elmergeo_connection, SQL("dbo.v_rgc_tracts"))
-    tracts_df %>%
-      filter(census_year == cen_year)
+    tracts_sql<- "select geoid, min([name]) as name from dbo.v_rgc_tracts where census_year = {cen_year} group by geoid"
+    tracts_df <-  dbGetQuery(elmergeo_connection, SQL("select geoid, min([name]) as name from dbo.v_rgc_tracts group by geoid"))
+    tracts_df 
   }
   
   output$sov_shares <- renderLeaflet(
-    workers_per_tract()
+    summary_per_rgc()
   )
   
-  create_tract_map_ctpp <- function(tract.tbl, tract.lyr,
+  
+  create_rgc_map_ctpp <- function(rgc.tbl, rgc.lyr,
                                     map.title = NULL, map.subtitle = NULL,
                                     map.title.position = NULL,
                                     legend.title = NULL, legend.subtitle = NULL,
                                     map.lat=47.615, map.lon=-122.257, map.zoom=8.5, wgs84=4326){
     
     
-    # Summarize and Aggregate Tract Data by Year and Attribute to Map and join to tract layer for mapping
-    # rename census value column to estimate to match ACS
-    # also allow for the easy mapping of equity geographies
-    tbl <- tract.tbl %>%
-      dplyr::select(.data$GEOID,.data$estimate) %>%
-      dplyr::mutate(dplyr::across(c('GEOID'), as.character))%>%
-      dplyr::group_by(.data$GEOID) %>%
-      dplyr::summarise(Total=sum(.data$estimate))
+    tbl <- rgc.tbl 
     
-    tract.lyr<-tract.lyr%>%
-      # make geo names across 2010 and 2020
-      dplyr::rename_at(dplyr::vars(matches("GEOID10")),function(x) "geoid") %>%
-      dplyr::rename_at(dplyr::vars(matches("GEOID20")),function(x) "geoid")
-    
-    c.layer <- dplyr::left_join(tract.lyr,tbl, by = c("geoid"="GEOID")) %>%
+    c.layer <- dplyr::left_join(rgc.lyr,tbl, by = c("name"="rgc")) %>%
       sf::st_transform(wgs84)
     
-    pal <- leaflet::colorNumeric(palette="Purples", domain = c.layer$Total)
+    color.ramp <- colorRamp(c("#d0f7da", "#077363"), interpolate="spline")
+    pal <- leaflet::colorNumeric(palette=color.ramp, domain = c.layer$sov_shares)
     
     
-    labels <- paste0("Census Tract: ", c.layer$geoid, '<p></p>',
-                     'SOV Share: ', c.layer$Total) %>% lapply(htmltools::HTML)
+    labels <- paste0( "Center: ", c.layer$name, "<p></p>",
+                     "SOV Share: ", c.layer$sov_share) %>% 
+                        lapply(htmltools::HTML)
     
     m <- leaflet::leaflet() %>%
       leaflet::addMapPane(name = "polygons", zIndex = 410) %>%
@@ -110,7 +106,7 @@ server <- function(input, output, session){
                                                  onClick=leaflet::JS("function(btn, map){map.setView([47.615,-122.257],8.5); }"))) %>%
       leaflet::addPolygons(data=c.layer,
                            fillOpacity = 0.7,
-                           fillColor = pal(c.layer$Total),
+                           fillColor = pal(c.layer$sov_share),
                            weight = 0.7,
                            color = "#BCBEC0",
                            group="Population",
@@ -131,7 +127,7 @@ server <- function(input, output, session){
                              direction = "auto")) %>%
       
       leaflet::addLegend(pal = pal,
-                         values = c.layer$Total,
+                         values = c.layer$sov_share,
                          position = "bottomright",
                          title = paste(legend.title, '<br>', legend.subtitle)) %>%
       
