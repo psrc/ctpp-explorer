@@ -1,7 +1,7 @@
-library(shinythemes)
-library(sf)
-library(scales)
-library(leaflet)
+# library(shinythemes)
+# library(sf)
+# library(scales)
+# library(leaflet)
 
 table.name.selector <- selectInput("tbl_name", 
                                    "Select a table to map:", 
@@ -10,12 +10,11 @@ table.name.selector <- selectInput("tbl_name",
 
 map.sidebar <- sidebarPanel(width = 3,
                             table.name.selector,
-                            p("Push this:"),
-                            actionButton("go", "Do the thing" )
+                            actionButton("go", "Map it" )
                             )
 
 map.panel <- mainPanel(width = 9,
-                       leafletOutput("sov_shares")
+                       leafletOutput("sov_shares", height='85vh')
                        #p('The leaflet map will go here.')
                        )
 
