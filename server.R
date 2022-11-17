@@ -1,11 +1,3 @@
-# library(dplyr)
-# library(ggplot2)
-# library(psrcctpp)
-# library(leaflet)
-# library(odbc)
-# library(DBI)
-# library(glue)
-# library(tidyr)
 
 server <- function(input, output, session){
   
@@ -33,7 +25,7 @@ server <- function(input, output, session){
     
     create_rgc_map_ctpp(rgc.tbl=ctpp_df, 
                           rgc.lyr=rgc.lyr, 
-                          map.title='Drive Alone Share by Work Location', 
+                          map.title=names(table.names()[table.names() == input$tbl_name]),
                           legend.title='Percent of Workers', 
                           legend.subtitle='by Tract')
       
@@ -44,10 +36,10 @@ server <- function(input, output, session){
     #rename work_geoid or res_geoid to just "GEOID"
     work.geoid.sum <- sum(df$work_geoid == "")
     res.geoid.sum  <- sum(df$res_geoid  == "")
-    if(work.geoid.sum == 0) {
+    if(work.geoid.sum == 0 & res.geoid.sum > 0) {
       out_df <- df %>%
         rename(GEOID=work_geoid)
-    } else if(res.geoid.sum == 0) {
+    } else if(res.geoid.sum == 0 & work.geoid.sum > 0) {
       out_df <- df %>%
         rename(GEOID=res_geoid)
     }
@@ -75,7 +67,7 @@ server <- function(input, output, session){
   
   create_rgc_map_ctpp <- function(rgc.tbl, rgc.lyr,
                                     map.title = NULL, map.subtitle = NULL,
-                                    map.title.position = NULL,
+                                    map.title.position = "topright",
                                     legend.title = NULL, legend.subtitle = NULL,
                                     map.lat=47.615, map.lon=-122.257, map.zoom=8.5, wgs84=4326){
     
@@ -85,17 +77,24 @@ server <- function(input, output, session){
     c.layer <- dplyr::left_join(rgc.lyr,tbl, by = c("name"="rgc")) %>%
       sf::st_transform(wgs84)
     
-    color.ramp <- colorRamp(c("#d0f7da", "#077363"), interpolate="spline")
+    color.ramp <- colorRamp(c("#e6e6ae", "#154fa1"), interpolate="spline")
     pal <- leaflet::colorNumeric(palette=color.ramp, domain = c.layer$sov_shares)
     
     
     labels <- paste0( "Center: ", c.layer$name, "<p></p>",
-                     "SOV Share: ", c.layer$sov_share) %>% 
+                     "SOV Share: ", percent(c.layer$sov_share, accuracy=0.1)) %>% 
                         lapply(htmltools::HTML)
+    
     
     m <- leaflet::leaflet() %>%
       leaflet::addMapPane(name = "polygons", zIndex = 410) %>%
+      
+      leaflet::addControl(html = paste(map.title, '<br/>', map.subtitle),
+                          position = map.title.position,
+                          layerId = 'mapTitle') %>%
+      
       leaflet::addMapPane(name = "maplabels", zIndex = 500) %>% # higher zIndex rendered on top
+      
       
       leaflet::addProviderTiles("CartoDB.VoyagerNoLabels") %>%
       leaflet::addProviderTiles("CartoDB.VoyagerOnlyLabels",
@@ -106,7 +105,7 @@ server <- function(input, output, session){
                                                  title="Region",
                                                  onClick=leaflet::JS("function(btn, map){map.setView([47.615,-122.257],8.5); }"))) %>%
       leaflet::addPolygons(data=c.layer,
-                           fillOpacity = 0.7,
+                           fillOpacity = 0.9,
                            fillColor = pal(c.layer$sov_share),
                            weight = 0.7,
                            color = "#BCBEC0",
@@ -119,7 +118,7 @@ server <- function(input, output, session){
                              weight =5,
                              color = "76787A",
                              dashArray ="",
-                             fillOpacity = 0.7,
+                             fillOpacity = 0.9,
                              bringToFront = TRUE),
                            label = labels,
                            labelOptions = leaflet::labelOptions(
@@ -129,12 +128,13 @@ server <- function(input, output, session){
       
       leaflet::addLegend(pal = pal,
                          values = c.layer$sov_share,
+                         labFormat = labelFormat(
+                           suffix = "%",
+                           transform = function(x) 100 * x
+                         ),
                          position = "bottomright",
                          title = paste(legend.title, '<br>', legend.subtitle)) %>%
       
-      leaflet::addControl(html = paste(map.title, '<br>', map.subtitle),
-                          position = map.title.position,
-                          layerId = 'mapTitle') %>%
       
       leaflet::addLayersControl(baseGroups = "CartoDB.VoyagerNoLabels",
                                 overlayGroups = c("Labels", "Population")) %>%

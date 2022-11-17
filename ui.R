@@ -1,8 +1,3 @@
-# library(shinythemes)
-# library(sf)
-# library(scales)
-# library(leaflet)
-
 table.name.selector <- selectInput("tbl_name", 
                                    "Select a table to map:", 
                                    table.names()
