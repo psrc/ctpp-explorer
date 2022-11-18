@@ -49,14 +49,9 @@ server <- function(input, output, session){
   
   rgc_tracts <- function(cen_year) {
     
-    elmergeo_connection <- dbConnect(odbc::odbc(),
-                                  driver = "SQL Server",
-                                  server = "AWS-PROD-SQL\\Sockeye",
-                                  database = "ElmerGeo",
-                                  trusted_connection = "yes"
-    ) 
-    tracts_sql<- "select geoid, min([name]) as name from dbo.v_rgc_tracts where census_year = {cen_year} group by geoid"
-    tracts_df <-  dbGetQuery(elmergeo_connection, SQL("select geoid, min([name]) as name from dbo.v_rgc_tracts group by geoid"))
+    sqlite_connection <- dbConnect(RSQLite::SQLite(), './data/ctpp_explorer.db')
+    tracts_sql<- paste0("select geoid, min([name]) as name from [dbo.v_rgc_tracts] where census_year = ", cen_year, " group by geoid")
+    tracts_df <-  dbGetQuery(sqlite_connection, SQL(tracts_sql))
     tracts_df 
   }
   
