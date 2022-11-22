@@ -72,12 +72,13 @@ server <- function(input, output, session){
     c.layer <- dplyr::left_join(rgc.lyr,tbl, by = c("name"="rgc")) %>%
       sf::st_transform(wgs84)
     
-    color.ramp <- colorRamp(c("#e6e6ae", "#154fa1"), interpolate="spline")
+    purples_inc = c("#E3C9E3", "#C388C2", "#AD5CAB", "#91268F", "#630460", "#4A0048")
+    color.ramp <- colorRamp(purples_inc, interpolate="spline")
     pal <- leaflet::colorNumeric(palette=color.ramp, domain = c.layer$sov_shares)
     
     
     labels <- paste0( "Center: ", c.layer$name, "<p></p>",
-                     "SOV Share: ", percent(c.layer$sov_share, accuracy=0.1)) %>% 
+                     "SOV Share: ", percent(c.layer$sov_share, accuracy=1)) %>% 
                         lapply(htmltools::HTML)
     
     
