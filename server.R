@@ -62,10 +62,19 @@ server <- function(input, output, session){
     map_rgcs()
   )
   
-  output$downloadData<- downloadHandler(filename= function(){paste0(input$tbl_name,'ctpp_mode_shares_rgc_2016.csv')},
-                                        content= function(file){
-                                        write.csv(summary_per_rgc(), file)}
-                                        )
+
+                                                
+  output$downloadData <- renderUI({
+    req(input$go, summary_per_rgc())
+    downloadButton("downloadData01")
+                  })
+  
+  output$downloadData01<- downloadHandler(filename= function()
+     {paste0('ctpp_2016_psrc_rgc_',input$tbl_name, '.csv')},
+                                         content= function(file){
+                                         write.csv(summary_per_rgc(), file)})
+  
+  
   
   create_rgc_map_ctpp <- function(rgc.tbl, rgc.lyr,
                                     map.title = NULL, map.subtitle = NULL,

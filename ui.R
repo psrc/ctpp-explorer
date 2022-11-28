@@ -6,7 +6,7 @@ table.name.selector <- selectInput("tbl_name",
 map.sidebar <- sidebarPanel(width = 3,
                             table.name.selector,
                             actionButton("go", "Map it" ),
-                            downloadButton('downloadData', 'Download .csv data'),
+                            uiOutput('downloadData')
                             )
 
 map.panel <- mainPanel(width = 9,
