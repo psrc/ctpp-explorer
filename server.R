@@ -2,11 +2,12 @@
 server <- function(input, output, session){
   
   summary_per_rgc <- eventReactive(input$go, {
-    ctpp_df<-get_psrc_ctpp(dyear=2016, data_table = input$tbl_name, scale = 'tract')
+    
+    ctpp_df<-get_psrc_ctpp_api(table_code= input$tbl_name,  scale = 'tract', dyear=2016)
     centers_tracts <- rgc_tracts(2010)
     ctpp_df<-transform_geoid(ctpp_df)
     ctpp_df$estimate<- as.numeric(gsub(",", "", ctpp_df$estimate))
-    
+
     ctpp_df <- ctpp_df %>%
       inner_join(centers_tracts, by=c('GEOID' = 'geoid')) %>%
       filter(category %in% c('Total', 'Car, truck, or van -- Drove alone')) %>%
@@ -27,19 +28,18 @@ server <- function(input, output, session){
                           rgc.lyr=rgc.lyr, 
                           map.title=names(table.names()[table.names() == input$tbl_name]),
                           legend.title='Percent of Workers', 
-                          legend.subtitle='by Tract')
+                          legend.subtitle='Using Single Occupancy Vehicles (SOV)')
       
   })
   
   
   transform_geoid <- function(df){
     #rename work_geoid or res_geoid to just "GEOID"
-    work.geoid.sum <- sum(df$work_geoid == "")
-    res.geoid.sum  <- sum(df$res_geoid  == "")
-    if(work.geoid.sum == 0 & res.geoid.sum > 0) {
+    if('work_geoid' %in% colnames(df)) {
       out_df <- df %>%
         rename(GEOID=work_geoid)
-    } else if(res.geoid.sum == 0 & work.geoid.sum > 0) {
+    }  
+    if('res_geoid' %in% colnames(df)) {
       out_df <- df %>%
         rename(GEOID=res_geoid)
     }
@@ -81,6 +81,24 @@ server <- function(input, output, session){
                      "SOV Share: ", percent(c.layer$sov_share, accuracy=1)) %>% 
                         lapply(htmltools::HTML)
     
+    tag.map.title <- tags$style(HTML("
+  .leaflet-control.map-title { 
+    transform: translate(-50%,20%);
+    position: fixed !important;
+    left: 50%;
+    text-align: center;
+    padding-left: 10px; 
+    padding-right: 10px; 
+    background: rgba(255,255,255,0.75);
+    font-weight: bold;
+    font-size: 12px;
+     }
+    "))
+    
+    title <- tags$div(
+      tag.map.title, HTML("Regional Growth Center Worker Single Occupancy Mode Shares, 2012-2016")
+    )
+    
     
     m <- leaflet::leaflet() %>%
       leaflet::addMapPane(name = "polygons", zIndex = 410) %>%
@@ -90,10 +108,8 @@ server <- function(input, output, session){
                           layerId = 'mapTitle') %>%
       
       leaflet::addMapPane(name = "maplabels", zIndex = 500) %>% # higher zIndex rendered on top
-      
-      
-      leaflet::addProviderTiles("CartoDB.VoyagerNoLabels") %>%
-      leaflet::addProviderTiles("CartoDB.VoyagerOnlyLabels",
+      leaflet::addProviderTiles("CartoDB.PositronNoLabels") %>%
+      leaflet::addProviderTiles("CartoDB.PositronOnlyLabels",
                                 options = leaflet::leafletOptions(pane = "maplabels"),
                                 group = "Labels") %>%
       
@@ -131,9 +147,12 @@ server <- function(input, output, session){
                          position = "bottomright",
                          title = paste(legend.title, '<br>', legend.subtitle)) %>%
       
-      
-      leaflet::addLayersControl(baseGroups = "CartoDB.VoyagerNoLabels",
+      leaflet::addLayersControl(baseGroups = "CartoDB.PositronNoLabels",
                                 overlayGroups = c("Labels", "Population")) %>%
+      
+      addControl(title, position = "topleft", className="map-title")%>%
+      
+      addTiles(attribution = 'CTPP 2012-2016 Journey to Work Data')%>%
       
       leaflet::setView(lng=map.lon, lat=map.lat, zoom=map.zoom)
     

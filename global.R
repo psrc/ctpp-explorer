@@ -11,7 +11,9 @@ library(shinythemes)
 library(tidyr)
 library(RSQLite)
 
+
+
 table.names <- function() {
-  c("Workplace: Means of Transportation"= "A202105","Residence: Means of Transportation" = "A102106")
+  c("Workplace: Means of Transportation"= "A202105", "Residence: Means of Transportation" = "A102106")
 }
 

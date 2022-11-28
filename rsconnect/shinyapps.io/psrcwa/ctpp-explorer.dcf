@@ -1,0 +1,11 @@
+name: ctpp-explorer
+title:
+username:
+account: psrcwa
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 7750414
+bundleId: 6563765
+url: https://psrcwa.shinyapps.io/ctpp-explorer/
+when: 1669660700.41372
+lastSyncTime: 1669660700.41372

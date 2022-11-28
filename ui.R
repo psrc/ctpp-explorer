@@ -16,9 +16,9 @@ map.panel <- mainPanel(width = 9,
 
 
 ui <- fluidPage(
-  titlePanel("", windowTitle = "CTPP Explorer"),
+  titlePanel("", windowTitle = "Worker Commute Data Exploration from Census Transportation Package"),
   theme = "bootstrap_united.css",
-  navbarPage("CTPP Explorer",
+  navbarPage("Worker Commute Data from the Census Transportation Planning Package(CTPP)",
         sidebarLayout(
           map.sidebar,
           map.panel
