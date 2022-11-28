@@ -5,7 +5,8 @@ table.name.selector <- selectInput("tbl_name",
 
 map.sidebar <- sidebarPanel(width = 3,
                             table.name.selector,
-                            actionButton("go", "Map it" )
+                            actionButton("go", "Map it" ),
+                            downloadButton('downloadData', 'Download .csv data'),
                             )
 
 map.panel <- mainPanel(width = 9,
@@ -14,14 +15,13 @@ map.panel <- mainPanel(width = 9,
                        )
 
 
-
 ui <- fluidPage(
   titlePanel("", windowTitle = "Worker Commute Data Exploration from Census Transportation Package"),
   theme = "bootstrap_united.css",
   navbarPage("Worker Commute Data from the Census Transportation Planning Package(CTPP)",
         sidebarLayout(
           map.sidebar,
-          map.panel
-        )
+          map.panel)
+        
   )
 )

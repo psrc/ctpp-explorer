@@ -19,7 +19,10 @@ server <- function(input, output, session){
       #rename(sov = Car, truck, or van -- Drove alone) %>%
       mutate(sov_share = sov / Total)
     
-    
+  })
+  
+  map_rgcs<-eventReactive(input$go,{
+    ctpp_df<-summary_per_rgc()
     centers_tracts <- rgc_tracts(2010)
     rgc.url <- "https://services6.arcgis.com/GWxg6t7KXELn1thE/arcgis/rest/services/Regional_Growth_Centers/FeatureServer/0/query?where=0=0&outFields=*&f=pgeojson"
     rgc.lyr <- st_read(rgc.url)
@@ -29,9 +32,9 @@ server <- function(input, output, session){
                           map.title=names(table.names()[table.names() == input$tbl_name]),
                           legend.title='Percent of Workers', 
                           legend.subtitle='Using Single Occupancy Vehicles (SOV)')
-      
+    
+    
   })
-  
   
   transform_geoid <- function(df){
     #rename work_geoid or res_geoid to just "GEOID"
@@ -56,9 +59,13 @@ server <- function(input, output, session){
   }
   
   output$sov_shares <- renderLeaflet(
-    summary_per_rgc()
+    map_rgcs()
   )
   
+  output$downloadData<- downloadHandler(filename= function(){paste0(input$tbl_name,'ctpp_mode_shares_rgc_2016.csv')},
+                                        content= function(file){
+                                        write.csv(summary_per_rgc(), file)}
+                                        )
   
   create_rgc_map_ctpp <- function(rgc.tbl, rgc.lyr,
                                     map.title = NULL, map.subtitle = NULL,
@@ -96,7 +103,7 @@ server <- function(input, output, session){
     "))
     
     title <- tags$div(
-      tag.map.title, HTML("Regional Growth Center Worker Single Occupancy Mode Shares, 2012-2016")
+      tag.map.title, HTML("Regional Growth Center Worker Single Occupancy Vehicle Mode Shares, 2012-2016")
     )
     
     
@@ -108,8 +115,8 @@ server <- function(input, output, session){
                           layerId = 'mapTitle') %>%
       
       leaflet::addMapPane(name = "maplabels", zIndex = 500) %>% # higher zIndex rendered on top
-      leaflet::addProviderTiles("CartoDB.PositronNoLabels") %>%
-      leaflet::addProviderTiles("CartoDB.PositronOnlyLabels",
+      leaflet::addProviderTiles("CartoDB.VoyagerNoLabels") %>%
+      leaflet::addProviderTiles("CartoDB.VoyagerOnlyLabels",
                                 options = leaflet::leafletOptions(pane = "maplabels"),
                                 group = "Labels") %>%
       
@@ -152,11 +159,10 @@ server <- function(input, output, session){
       
       addControl(title, position = "topleft", className="map-title")%>%
       
-      addTiles(attribution = 'CTPP 2012-2016 Journey to Work Data')%>%
-      
       leaflet::setView(lng=map.lon, lat=map.lat, zoom=map.zoom)
     
     return(m)
     
   } 
+
 }
