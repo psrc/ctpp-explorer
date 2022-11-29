@@ -3,9 +3,9 @@ server <- function(input, output, session){
   
   summary_per_rgc <- eventReactive(input$go, {
     
-    ctpp_df<-get_psrc_ctpp_api(table_code= input$tbl_name,  scale = 'tract', dyear=2016)
+    ctpp_df<-get_psrc_ctpp(table_code= input$tbl_name,  scale = 'tract', dyear=2016)
     centers_tracts <- rgc_tracts(2010)
-    ctpp_df<-transform_geoid(ctpp_df)
+    ctpp_df<-transform_geoid(input$tbl_name, ctpp_df)
     ctpp_df$estimate<- as.numeric(gsub(",", "", ctpp_df$estimate))
 
     ctpp_df <- ctpp_df %>%
@@ -36,15 +36,15 @@ server <- function(input, output, session){
     
   })
   
-  transform_geoid <- function(df){
+  transform_geoid <- function(table_code, df){
     #rename work_geoid or res_geoid to just "GEOID"
-    if('work_geoid' %in% colnames(df)) {
-      out_df <- df %>%
-        rename(GEOID=work_geoid)
-    }  
-    if('res_geoid' %in% colnames(df)) {
+
+    if(startsWith(table_code, 'A1') | startsWith(table_code, 'B1')) {
       out_df <- df %>%
         rename(GEOID=res_geoid)
+    } else if(startsWith(table_code, 'A2') | startsWith(table_code, 'B2')){
+      out_df <- df %>%
+        rename(GEOID=work_geoid)
     }
     out_df
   }
@@ -75,6 +75,16 @@ server <- function(input, output, session){
                                          write.csv(summary_per_rgc(), file)})
   
   
+  ctpp_url<- a("About the CTPP", href="https://ctpp.transportation.org/")
+  psrc_url<- a("About the Puget Sound Regional Council", href="https://www.psrc.org/")
+  
+  output$ctpp_url<-renderUI({
+    tagList("", ctpp_url)
+  })
+  
+  output$psrc_url<-renderUI({
+    tagList("", psrc_url)
+  })
   
   create_rgc_map_ctpp <- function(rgc.tbl, rgc.lyr,
                                     map.title = NULL, map.subtitle = NULL,
