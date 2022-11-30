@@ -1,33 +1,52 @@
 table.name.selector <- selectInput("tbl_name", 
-                                   "Select a table to map:", 
+                                   "Select a table to map", 
                                    table.names()
                                    )
+
+card.agencies <- card(
+  card_header("Sources"),
+  div(
+  a(img(src='ctpp-aashto.png', width="20%"), href="https://ctpp.transportation.org/"),
+  a(img(src='psrc_logo.png', width="60%"), href="https://www.psrc.org/"),
+  class = 'text-center')
+      
+)
 
 map.sidebar <- sidebarPanel(width = 3,
                             table.name.selector,
                             actionButton("go", "Map it" ),
-                            uiOutput('downloadData'))
+                            br(),
+                            br(),
+                            downloadButton("download", "Download Data"),
+                            br(),
+                            br(),
+                            layout_column_wrap(
+                              width = 1,
+                              height = 200,
+                              card.agencies
+                            )
+)
                             
 
 map.panel <- mainPanel(width = 9,
-                       div(img(src='ctpp-aashto.png', width="10%", height ="10%", style = "align:top"),
-                           img(src='psrc_logo.png', width="20%", height ="20%", style = "align:top") ),
-                       uiOutput("ctpp_url"),
-                       uiOutput("psrc_url"),
-                       leafletOutput("sov_shares", height='85vh'),
-                       #p('The leaflet map will go here.'),
+                       leafletOutput("sov_shares", height='85vh')
                        )
 
 
-ui <- fluidPage(
-  titlePanel("", windowTitle = "Commute Data Exploration from Census Transportation Planning Package"),
-  theme = "bootstrap_united.css",
-  navbarPage("Commute Data in the Puget Sound Region from the Census Transportation Planning Package(CTPP)",
 
-        sidebarLayout(
-          map.sidebar,
-          map.panel
-  ),
-  
+ui <- fluidPage(
+  navbarPage(HTML("Commute Data from the Census Transportation Planning Package <br/> 
+             in Puget Sound Regional Growth Centers"),
+             theme = bs_theme(bootswatch = "united",
+                              base_font = font_google("Poppins")),
+             useShinyjs(),
+             
+             windowTitle = "Commute Data Exploration from CTPP",
+             
+             sidebarLayout(
+               map.sidebar,
+               map.panel
+             ),
+             
   )
 )

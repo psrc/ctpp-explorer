@@ -1,12 +1,12 @@
-
 server <- function(input, output, session){
+  # bs_themer()
   
   summary_per_rgc <- eventReactive(input$go, {
     
-    ctpp_df<-get_psrc_ctpp(table_code= input$tbl_name,  scale = 'tract', dyear=2016)
+    ctpp_df <- get_psrc_ctpp(table_code= input$tbl_name,  scale = 'tract', dyear=2016)
     centers_tracts <- rgc_tracts(2010)
-    ctpp_df<-transform_geoid(input$tbl_name, ctpp_df)
-    ctpp_df$estimate<- as.numeric(gsub(",", "", ctpp_df$estimate))
+    ctpp_df <- transform_geoid(input$tbl_name, ctpp_df)
+    ctpp_df$estimate <- as.numeric(gsub(",", "", ctpp_df$estimate))
 
     ctpp_df <- ctpp_df %>%
       inner_join(centers_tracts, by=c('GEOID' = 'geoid')) %>%
@@ -30,8 +30,8 @@ server <- function(input, output, session){
     create_rgc_map_ctpp(rgc.tbl=ctpp_df, 
                           rgc.lyr=rgc.lyr, 
                           map.title=names(table.names()[table.names() == input$tbl_name]),
-                          legend.title='Percent of Workers', 
-                          legend.subtitle='Using Single Occupancy Vehicles (SOV)')
+                          legend.title='Worker Commute Mode Share', 
+                          legend.subtitle='in Single Occupancy Vehicles (SOV)')
     
     
   })
@@ -62,126 +62,31 @@ server <- function(input, output, session){
     map_rgcs()
   )
   
-
-                                                
-  output$downloadData <- renderUI({
-    req(input$go, summary_per_rgc())
-    downloadButton("downloadData01")
-                  })
+  # Enable/Disable Download button ----
   
-  output$downloadData01<- downloadHandler(filename= function()
-     {paste0('ctpp_2016_psrc_rgc_',input$tbl_name, '.csv')},
+  v <- reactiveValues(t = NULL,
+                      go = 0)
+  
+  observeEvent(input$go, {
+    # update reactiveValues when 'Map it' button is clicked
+    
+    v$t <- input$tbl_name
+    v$go <- v$go + 1
+  })
+
+  observe({
+    # disable and enable download button if inputs change or 'Map it' button is clicked
+    
+    if (v$go == 0 || (v$t != input$tbl_name) ) {
+      disable("download")
+    } else if (v$go > 0) {
+      enable("download")  
+    }
+  })
+  
+  output$download<- downloadHandler(filename= function(){
+    paste0('ctpp_2016_psrc_rgc_',input$tbl_name, '.csv')},
                                          content= function(file){
                                          write.csv(summary_per_rgc(), file)})
   
-  
-  ctpp_url<- a("About the CTPP", href="https://ctpp.transportation.org/")
-  psrc_url<- a("About the Puget Sound Regional Council", href="https://www.psrc.org/")
-  
-  output$ctpp_url<-renderUI({
-    tagList("", ctpp_url)
-  })
-  
-  output$psrc_url<-renderUI({
-    tagList("", psrc_url)
-  })
-  
-  create_rgc_map_ctpp <- function(rgc.tbl, rgc.lyr,
-                                    map.title = NULL, map.subtitle = NULL,
-                                    map.title.position = "topright",
-                                    legend.title = NULL, legend.subtitle = NULL,
-                                    map.lat=47.615, map.lon=-122.257, map.zoom=8.5, wgs84=4326){
-    
-    
-    tbl <- rgc.tbl 
-    
-    c.layer <- dplyr::left_join(rgc.lyr,tbl, by = c("name"="rgc")) %>%
-      sf::st_transform(wgs84)
-    
-    purples_inc = c("#E3C9E3", "#C388C2", "#AD5CAB", "#91268F", "#630460", "#4A0048")
-    color.ramp <- colorRamp(purples_inc, interpolate="spline")
-    pal <- leaflet::colorNumeric(palette=color.ramp, domain = c.layer$sov_shares)
-    
-    
-    labels <- paste0( "Center: ", c.layer$name, "<p></p>",
-                     "SOV Share: ", percent(c.layer$sov_share, accuracy=1)) %>% 
-                        lapply(htmltools::HTML)
-    
-    tag.map.title <- tags$style(HTML("
-  .leaflet-control.map-title { 
-    transform: translate(-50%,20%);
-    position: fixed !important;
-    left: 50%;
-    text-align: center;
-    padding-left: 10px; 
-    padding-right: 10px; 
-    background: rgba(255,255,255,0.75);
-    font-weight: bold;
-    font-size: 12px;
-     }
-    "))
-    
-    title <- tags$div(
-      tag.map.title, HTML("Regional Growth Center Worker Single Occupancy Vehicle Mode Shares, 2012-2016")
-    )
-    
-    
-    m <- leaflet::leaflet() %>%
-      leaflet::addMapPane(name = "polygons", zIndex = 410) %>%
-      
-      leaflet::addControl(html = paste(map.title, '<br/>', map.subtitle),
-                          position = map.title.position,
-                          layerId = 'mapTitle') %>%
-      
-      leaflet::addMapPane(name = "maplabels", zIndex = 500) %>% # higher zIndex rendered on top
-      leaflet::addProviderTiles("CartoDB.VoyagerNoLabels") %>%
-      leaflet::addProviderTiles("CartoDB.VoyagerOnlyLabels",
-                                options = leaflet::leafletOptions(pane = "maplabels"),
-                                group = "Labels") %>%
-      
-      leaflet::addEasyButton(leaflet::easyButton(icon="fa-globe",
-                                                 title="Region",
-                                                 onClick=leaflet::JS("function(btn, map){map.setView([47.615,-122.257],8.5); }"))) %>%
-      leaflet::addPolygons(data=c.layer,
-                           fillOpacity = 0.9,
-                           fillColor = pal(c.layer$sov_share),
-                           weight = 0.7,
-                           color = "#BCBEC0",
-                           group="Population",
-                           opacity = 0,
-                           stroke=FALSE,
-                           options = leaflet::leafletOptions(pane = "polygons"),
-                           dashArray = "",
-                           highlight = leaflet::highlightOptions(
-                             weight =5,
-                             color = "76787A",
-                             dashArray ="",
-                             fillOpacity = 0.9,
-                             bringToFront = TRUE),
-                           label = labels,
-                           labelOptions = leaflet::labelOptions(
-                             style = list("font-weight" = "normal", padding = "3px 8px"),
-                             textsize = "15px",
-                             direction = "auto")) %>%
-      
-      leaflet::addLegend(pal = pal,
-                         values = c.layer$sov_share,
-                         labFormat = labelFormat(
-                           suffix = "%",
-                           transform = function(x) 100 * x
-                         ),
-                         position = "bottomright",
-                         title = paste(legend.title, '<br>', legend.subtitle)) %>%
-      
-      leaflet::addLayersControl(baseGroups = "CartoDB.PositronNoLabels",
-                                overlayGroups = c("Labels", "Population")) %>%
-      
-      addControl(title, position = "topleft", className="map-title")%>%
-      
-      leaflet::setView(lng=map.lon, lat=map.lat, zoom=map.zoom)
-    
-    return(m)
-    
-  } 
-
 }
