@@ -35,7 +35,8 @@ map.panel <- mainPanel(width = 9,
 
 
 ui <- fluidPage(
-  navbarPage("Commute Data in the Puget Sound Region from the Census Transportation Planning Package (CTPP)",
+  navbarPage(HTML("Commute Data from the Census Transportation Planning Package <br/> 
+             in Puget Sound Regional Growth Centers"),
              theme = bs_theme(bootswatch = "united",
                               base_font = font_google("Poppins")),
              useShinyjs(),

@@ -42,32 +42,11 @@ create_rgc_map_ctpp <- function(rgc.tbl, rgc.lyr,
                     "SOV Share: ", percent(c.layer$sov_share, accuracy=1)) %>% 
     lapply(htmltools::HTML)
   
-  tag.map.title <- tags$style(HTML("
-  .leaflet-control.map-title { 
-    transform: translate(-50%,20%);
-    position: fixed !important;
-    left: 50%;
-    text-align: center;
-    padding-left: 10px; 
-    padding-right: 10px; 
-    background: rgba(255,255,255,0.75);
-    font-weight: bold;
-    font-size: 12px;
-     }
-    "))
-  
-  title <- tags$div(
-    tag.map.title, HTML("Regional Growth Center Worker Single Occupancy Vehicle Mode Shares, 2012-2016")
-  )
+
   
   
   m <- leaflet::leaflet() %>%
     leaflet::addMapPane(name = "polygons", zIndex = 410) %>%
-    
-    leaflet::addControl(html = paste(map.title, '<br/>', map.subtitle),
-                        position = map.title.position,
-                        layerId = 'mapTitle') %>%
-    
     leaflet::addMapPane(name = "maplabels", zIndex = 500) %>% # higher zIndex rendered on top
     leaflet::addProviderTiles("CartoDB.VoyagerNoLabels") %>%
     leaflet::addProviderTiles("CartoDB.VoyagerOnlyLabels",
@@ -97,7 +76,8 @@ create_rgc_map_ctpp <- function(rgc.tbl, rgc.lyr,
                          labelOptions = leaflet::labelOptions(
                            style = list("font-weight" = "normal", padding = "3px 8px"),
                            textsize = "15px",
-                           direction = "auto")) %>%
+                           direction = "auto",
+                           font="Poppins")) %>%
     
     leaflet::addLegend(pal = pal,
                        values = c.layer$sov_share,
@@ -110,8 +90,6 @@ create_rgc_map_ctpp <- function(rgc.tbl, rgc.lyr,
     
     leaflet::addLayersControl(baseGroups = "CartoDB.PositronNoLabels",
                               overlayGroups = c("Labels", "Population")) %>%
-    
-    addControl(title, position = "topleft", className="map-title")%>%
     
     leaflet::setView(lng=map.lon, lat=map.lat, zoom=map.zoom)
   

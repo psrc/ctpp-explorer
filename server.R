@@ -30,8 +30,8 @@ server <- function(input, output, session){
     create_rgc_map_ctpp(rgc.tbl=ctpp_df, 
                           rgc.lyr=rgc.lyr, 
                           map.title=names(table.names()[table.names() == input$tbl_name]),
-                          legend.title='Percent of Workers', 
-                          legend.subtitle='Using Single Occupancy Vehicles (SOV)')
+                          legend.title='Worker Commute Mode Share', 
+                          legend.subtitle='in Single Occupancy Vehicles (SOV)')
     
     
   })
